@@ -38,11 +38,12 @@ jobs:
           # PATH에 SDK 도구들 추가
           export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/emulator:$PATH"
 
-          # 플랫폼(compileSdk), 플랫폼-툴, 에뮬레이터, system-image(api‑31) 설치
+          # 필수 컴포넌트 설치 (Robolectric 테스트용 SDK 34 추가)
           yes | sdkmanager \
             "platform-tools" \
-            "platforms;android-35" \
-            "platforms;android-31" \
+            "platforms;android-35" \    # compileSdkVersion 35
+            "platforms;android-31" \    # emulator API 31
+            "platforms;android-34" \    # Robolectric 테스트용 SDK
             "build-tools;35.0.0" \
             "emulator" \
             "system-images;android-31;default;x86_64"
@@ -57,9 +58,6 @@ jobs:
           arch: x86_64
           target: default
           emulator-options: -no-window -no-audio -no-boot-anim
-          sdk-manager-args: |
-            "platforms;android-35" \
-            "build-tools;35.0.0"
           script: adb shell input keyevent 82
 
       - name: Cache Gradle packages
