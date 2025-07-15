@@ -38,10 +38,11 @@ jobs:
           # PATH에 SDK 도구들 추가
           export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/emulator:$PATH"
 
-          # SDK 플랫폼35, 빌드툴35.0.0, 에뮬레이터, system-image(api‑31) 설치
+          # 플랫폼(compileSdk), 플랫폼-툴, 에뮬레이터, system-image(api‑31) 설치
           yes | sdkmanager \
             "platform-tools" \
             "platforms;android-35" \
+            "platforms;android-31" \
             "build-tools;35.0.0" \
             "emulator" \
             "system-images;android-31;default;x86_64"
@@ -56,6 +57,9 @@ jobs:
           arch: x86_64
           target: default
           emulator-options: -no-window -no-audio -no-boot-anim
+          sdk-manager-args: |
+            "platforms;android-35" \
+            "build-tools;35.0.0"
           script: adb shell input keyevent 82
 
       - name: Cache Gradle packages
@@ -67,4 +71,6 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties') }}
 
       - name: Build, lint & run tests
-        run: ./gradlew clean build lint connectedCheck --stacktrace
+        run: |
+          ./gradlew -Dsdk.dir="$ANDROID_SDK_ROOT" \
+            clean build lint connectedCheck --stacktrace
