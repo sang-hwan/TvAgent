@@ -31,25 +31,25 @@ jobs:
 
       - name: Install Android SDK components
         run: |
-          # cmdline-tools 경로 보정
+          # 1) cmdline-tools 경로 보정 (이미 설치된 경우 무시)
           sudo ln -s "$ANDROID_SDK_ROOT/cmdline-tools/latest" \
                    "$ANDROID_SDK_ROOT/cmdline-tools/tools" || true
 
-          # PATH에 SDK 도구들 추가
-          export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/emulator:$PATH"
+          # 2) PATH에 sdkmanager 도구 추가
+          export PATH="$ANDROID_SDK_ROOT/cmdline-tools/tools/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/emulator:$PATH"
 
-          # 필수 컴포넌트 설치 (Robolectric 테스트용 SDK 34 추가)
-          yes | sdkmanager \
+          # 3) 라이선스 동의
+          yes | sdkmanager --sdk_root="$ANDROID_SDK_ROOT" --licenses || true
+
+          # 4) 필수 Android SDK 패키지 설치
+          sdkmanager --sdk_root="$ANDROID_SDK_ROOT" \
             "platform-tools" \
-            "platforms;android-35" \    # compileSdkVersion 35
-            "platforms;android-31" \    # emulator API 31
-            "platforms;android-34" \    # Robolectric 테스트용 SDK
+            "platforms;android-35" \
+            "platforms;android-31" \
+            "platforms;android-34" \
             "build-tools;35.0.0" \
             "emulator" \
             "system-images;android-31;default;x86_64"
-
-          # 라이선스 동의
-          yes | sdkmanager --licenses
 
       - name: Run Android emulator
         uses: reactivecircus/android-emulator-runner@v2
