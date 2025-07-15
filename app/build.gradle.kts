@@ -12,20 +12,18 @@ android {
     namespace = "kr.co.aromit.tvagent"
     compileSdk = 35
 
-    buildFeatures {
-        buildConfig = true
-    }
-
     defaultConfig {
         applicationId = "kr.co.aromit.tvagent"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
         buildConfigField("Boolean", "ENABLE_TR069", enableTr069.toString())
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
@@ -37,12 +35,19 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
     kotlinOptions {
         jvmTarget = "11"
+    }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
     }
 }
 
@@ -52,30 +57,22 @@ protobuf {
     }
     generateProtoTasks {
         all().forEach { task ->
-            task.builtins {
-                create("java")
-            }
+            task.builtins { create("java") }
         }
     }
 }
 
 dependencies {
-    // Android 기본 라이브러리
+    // Android Core & UI
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
-    implementation(libs.material)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-
-    // Android TV 관련 추가
+    implementation(libs.androidx.material)
+    implementation(libs.androidx.lifecycle.ktx)
     implementation(libs.androidx.tv.foundation)
 
-    // HTTP 요청용 OkHttp
+    // Network / XML / MQTT
     implementation(libs.okhttp)
-
-    // XML 파싱용 XMLUtil
     implementation(libs.xmlutil.serialization)
-
-    // SOAP 통신용 ksoap2 및 추가 XML 파싱(Simple XML)
     implementation(libs.ksoap2.android) {
         exclude(group = "net.sourceforge.kobjects", module = "kobjects-j2me")
         exclude(group = "net.sourceforge.me4se", module = "me4se")
@@ -85,29 +82,32 @@ dependencies {
         exclude(group = "xpp3", module = "xpp3")
     }
     implementation(libs.simple.xml)
-
-    // Paho MQTT 클라이언트
     implementation(libs.paho)
     implementation(libs.paho.android)
-
-    // 프로토콜 버퍼 라이브러리
     implementation(libs.protobuf.java)
-
-    // 로깅용 (디버깅/로그 출력 필수)
     implementation(libs.timber)
 
-    // 테스트 라이브러리
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-
-    // 내부 모듈 의존성
+    // Internal modules
     implementation(project(":agent-core"))
     implementation(project(":network-mqtt"))
     implementation(project(":protocol-usp"))
-
-    // enableTr069 플래그에 따라 legacy 모듈 의존성 추가
     if (enableTr069) {
         implementation(project(":protocol-tr069-legacy"))
     }
+
+    // Unit tests
+    testImplementation(libs.junit)
+    testImplementation(libs.androidx.junit.ext)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.espresso.core)
+    testImplementation(libs.androidx.test.rules)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.mockito.core)
+    testImplementation(libs.mockito.kotlin)
+
+    // Instrumentation tests
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.junit.ext)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.test.rules)
 }
