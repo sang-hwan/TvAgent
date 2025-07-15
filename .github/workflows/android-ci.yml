@@ -14,39 +14,37 @@ jobs:
       # 1) 코드 체크아웃
       - uses: actions/checkout@v3
 
-      # 2) JDK 11 설치 (project의 compileOptions.sourceCompatibility = 11)
-      - name: Set up JDK 11
+      # 2) JDK 17 설치 (sdkmanager가 Java17 이상 필요)
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
           distribution: temurin
-          java-version: 11
+          java-version: 17
 
-      # 3) Android SDK 설치
+      # 3) Android SDK command‑line tools로 직접 설치 (compileSdk=35, buildTools=35.0.0)
       - name: Install Android SDK components
         env:
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
-          # 일부 러너에는 cmdline-tools/latest → tools 폴더가 없으므로 심볼릭 링크 만듦
+          # cmdline‑tools/latest → tools 링크 (러너마다 경로가 다를 수 있어요)
           sudo ln -s $ANDROID_SDK_ROOT/cmdline-tools/latest $ANDROID_SDK_ROOT/cmdline-tools/tools || true
           export PATH=$ANDROID_SDK_ROOT/cmdline-tools/tools/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH
 
-          # compileSdk=35, buildTools=35.0.0 설치
           yes | sdkmanager --install \
             "platform-tools" \
             "platforms;android-35" \
-            "build-tools;35.0.0"
+            "build-tools;35.0.0" \
+            "emulator" \
+            "system-images;android-31;default;x86_64"
+          sdkmanager --licenses
 
-      # 4) Emulator 실행 (Instrumentation Test용, API 31)
-      - name: Run Android emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 31
-          arch: x86_64
-          target: default
-          script: |
-            # 에뮬레이터 부팅 대기
-            adb wait-for-device
-            adb shell input keyevent 82
+      # 4) Android emulator 생성 & 실행 (instrumentation 테스트용)
+      - name: Create & start emulator
+        run: |
+          echo "no" | avdmanager create avd -n test -k "system-images;android-31;default;x86_64" --force
+          nohup $ANDROID_SDK_ROOT/emulator/emulator -avd test -no-window -no-audio -no-boot-anim &
+          adb wait-for-device
+          adb shell input keyevent 82
 
       # 5) Gradle 캐시
       - name: Cache Gradle packages
@@ -57,6 +55,6 @@ jobs:
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties') }}
 
-      # 6) 빌드 & 테스트 (unit, instrumentation 포함)
+      # 6) 빌드, 린트 & 테스트 실행
       - name: Build, Lint & Run Tests
         run: ./gradlew clean build lint connectedCheck --stacktrace
