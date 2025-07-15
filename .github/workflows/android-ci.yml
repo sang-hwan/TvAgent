@@ -14,14 +14,18 @@ jobs:
       # 1) Checkout
       - uses: actions/checkout@v3
 
-      # 2) JDK 17 (sdkmanager 실행 환경)
+      # 2) Grant execute permission to gradlew
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # 3) Set up JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
           distribution: temurin
           java-version: 17
 
-      # 3) Install Android SDK components (compileSdk=35, buildTools=35.0.0, emulator+system-image)
+      # 4) Install Android SDK components
       - name: Install Android SDK components
         env:
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
@@ -37,7 +41,7 @@ jobs:
             "system-images;android-31;default;x86_64"
           sdkmanager --licenses
 
-      # 4) Start emulator via reactivecircus action (API 31, x86_64)
+      # 5) Run emulator
       - name: Run Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -45,10 +49,9 @@ jobs:
           arch: x86_64
           target: default
           emulator-options: -no-window -no-audio -no-boot-anim
-          # unlock the device automatically
           script: adb shell input keyevent 82
 
-      # 5) Cache Gradle
+      # 6) Cache Gradle
       - name: Cache Gradle packages
         uses: actions/cache@v3
         with:
@@ -57,6 +60,6 @@ jobs:
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties') }}
 
-      # 6) Build, Lint & Run Tests
+      # 7) Build, Lint & Run Tests
       - name: Build, Lint & Run Tests
         run: ./gradlew clean build lint connectedCheck --stacktrace
