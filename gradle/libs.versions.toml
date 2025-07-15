@@ -1,0 +1,46 @@
+[versions]
+agp = "8.10.1"
+kotlin = "2.0.21"
+coreKtx = "1.16.0"
+junit = "4.13.2"
+junitVersion = "1.2.1"
+lifecycle = "2.9.1"
+espressoCore = "3.6.1"
+appcompat = "1.7.1"
+material = "1.12.0"
+tvFoundation = "1.0.0-alpha12"
+timber = "5.0.1"
+ksoap2 = "3.6.4"
+simpleXml = "2.7.1"
+okhttp = "4.9.3"
+xmlUtil = "0.91.1"
+paho = "1.2.5"
+paho-android = "1.1.1"
+protobuf       = "3.25.5"
+protobufPlugin = "0.9.4"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+androidx-tv-foundation = { group = "androidx.tv", name = "tv-foundation", version.ref = "tvFoundation" }
+ksoap2-android = { group = "com.github.simpligility", name = "ksoap2-android", version.ref = "ksoap2" }
+simple-xml = { group = "org.simpleframework", name = "simple-xml", version.ref = "simpleXml" }
+timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+xmlutil-serialization = { group = "io.github.pdvrieze.xmlutil", name = "serialization", version.ref = "xmlUtil" }
+paho = { group = "org.eclipse.paho", name = "org.eclipse.paho.client.mqttv3", version.ref = "paho" }
+paho-android = { group = "org.eclipse.paho", name = "org.eclipse.paho.android.service", version.ref = "paho-android" }
+protobuf-java = { group = "com.google.protobuf", name = "protobuf-java", version.ref = "protobuf" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library     = { id = "com.android.library", version.ref = "agp" }
+kotlin-android    = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+protobuf = { id = "com.google.protobuf", version.ref = "protobufPlugin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

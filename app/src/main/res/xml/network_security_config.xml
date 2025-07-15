@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 192.168.0.24 도메인에 대해 cleartext(HTTP) 허용 -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">192.168.0.24</domain>
+    </domain-config>
+
+    <!-- aromit.iptime.org 도메인에 대해 cleartext(HTTP) 허용 -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">aromit.iptime.org</domain>
+    </domain-config>
+</network-security-config>

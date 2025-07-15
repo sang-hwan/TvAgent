@@ -1,0 +1,33 @@
+# IDE
+.idea/
+*.iml
+
+# Gradle
+.gradle/
+build/
+!**/src/**/build/
+
+# Local config
+local.properties
+/local.properties
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Android generated
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Kotlin
+.kotlin/
+
+# Java build
+out/
+
+# Misc
+*.log
+
+# Optional: archive 폴더 제외 (백업 목적이라면)
+archive/
