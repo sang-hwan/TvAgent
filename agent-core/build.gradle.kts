@@ -8,7 +8,7 @@ val enableTr069: Boolean =
 
 android {
     namespace = "kr.co.aromit.core"
-    compileSdk = 35
+    compileSdk = 34
 
     buildFeatures {
         buildConfig = true

@@ -10,7 +10,7 @@ val enableTr069: Boolean =
 
 android {
     namespace = "kr.co.aromit.tvagent"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "kr.co.aromit.tvagent"

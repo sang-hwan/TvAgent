@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "kr.co.aromit.network.mqtt"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         minSdk = 26

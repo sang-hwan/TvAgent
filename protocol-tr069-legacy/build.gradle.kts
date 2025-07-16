@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "kr.co.aromit.tr069legacy"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         minSdk = 26
