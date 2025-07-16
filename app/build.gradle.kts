@@ -10,12 +10,12 @@ val enableTr069: Boolean =
 
 android {
     namespace = "kr.co.aromit.tvagent"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "kr.co.aromit.tvagent"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -37,11 +37,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
+
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "17"
     }
 }
 

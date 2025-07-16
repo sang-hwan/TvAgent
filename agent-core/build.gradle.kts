@@ -8,7 +8,7 @@ val enableTr069: Boolean =
 
 android {
     namespace = "kr.co.aromit.core"
-    compileSdk = 35
+    compileSdk = 34
 
     buildFeatures {
         buildConfig = true
@@ -16,17 +16,16 @@ android {
 
     defaultConfig {
         minSdk = 26
-
         buildConfigField("Boolean", "ENABLE_TR069", enableTr069.toString())
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "17"
     }
 }
 

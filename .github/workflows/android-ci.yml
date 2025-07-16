@@ -9,6 +9,7 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+
     env:
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       ANDROID_HOME:     /usr/local/lib/android/sdk
@@ -31,41 +32,45 @@ jobs:
       - name: Create local.properties
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
 
-      - name: Set up JDK 17
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: 17
 
       - name: Install Android SDK components
         run: |
-          # 1) cmdline-tools 경로 보정 (이미 설치된 경우 무시)
           sudo ln -sf "$ANDROID_SDK_ROOT/cmdline-tools/latest" \
                       "$ANDROID_SDK_ROOT/cmdline-tools/tools" || true
 
-          # 2) PATH에 sdkmanager 도구 추가
           export PATH="$ANDROID_SDK_ROOT/cmdline-tools/tools/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/emulator:$PATH"
 
-          # 3) 라이선스 동의
+          # 1차 라이선스 동의
           yes | sdkmanager --sdk_root="$ANDROID_SDK_ROOT" --licenses || true
 
-          # 4) 필수 Android SDK 패키지 설치
+          # 필수 패키지 설치 (안정판)
           sdkmanager --sdk_root="$ANDROID_SDK_ROOT" \
-            "platforms;android-35" \
-            "system-images;android-35;google_apis;arm64-v8a" \
-            "build-tools;35.0.0"
+            "platforms;android-34" \
+            "system-images;android-34;google_apis;x86_64" \
+            "build-tools;34.0.0"
 
-      - name: Build, lint & instrumentation tests
+          # 2차 라이선스 동의 (Google TV 등)
+          yes | sdkmanager --sdk_root="$ANDROID_SDK_ROOT" --licenses || true
+
+      - name: Build, lint & tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
-          arch: arm64-v8a
+          api-level: 34
+          arch: x86_64
           target: google_apis
           disable-animations: true
           emulator-boot-timeout: 600
           script: |
             ./gradlew -Dsdk.dir="$ANDROID_SDK_ROOT" \
-              clean build lint connectedCheck --stacktrace
+              clean build lint \
+              testDebugUnitTest \
+              connectedDebugAndroidTest \
+              --stacktrace
 
       - name: Cache Gradle packages
         uses: actions/cache@v3
@@ -73,4 +78,4 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties') }} 
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties') }}
