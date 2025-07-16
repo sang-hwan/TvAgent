@@ -1,28 +1,32 @@
 package kr.co.aromit.tvagent.receiver
 
+import android.app.Application
 import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
-import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.rule.ServiceTestRule
-import org.junit.Rule
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows
 import kr.co.aromit.tvagent.service.AgentService
 
-@RunWith(AndroidJUnit4::class)
+@RunWith(RobolectricTestRunner::class)
 class BootReceiverTest {
-    @get:Rule
-    val serviceRule = ServiceTestRule()
 
     @Test
-    fun `BootReceiver on receive sends START to AgentService`() {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        val intent = Intent(Intent.ACTION_BOOT_COMPLETED)
+    fun `onReceive should start AgentService`() {
+        // given
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        val bootIntent = Intent(Intent.ACTION_BOOT_COMPLETED)
 
-        // 브로드캐스트를 강제로 보내면…
-        BootReceiver().onReceive(context, intent)
+        // when
+        BootReceiver().onReceive(context, bootIntent)
 
-        // AgentService가 START_STICKY로 기동됐는지 ServiceTestRule로 확인
-        serviceRule.startService(Intent(context, AgentService::class.java))
+        // then: ShadowApplication이 가로챈 다음 시작된 서비스 Intent 검사
+        val started = Shadows.shadowOf(context).nextStartedService
+        assertEquals(
+            AgentService::class.java.name,
+            started.component?.className
+        )
     }
 }

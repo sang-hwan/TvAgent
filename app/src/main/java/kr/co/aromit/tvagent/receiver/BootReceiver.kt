@@ -4,6 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.os.Build
+import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import kr.co.aromit.tvagent.service.AgentService
 import kr.co.aromit.core.Config
@@ -30,7 +32,6 @@ class BootReceiver : BroadcastReceiver() {
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         val eventType: String? = when (action) {
-            // 시스템 부팅
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_LOCKED_BOOT_COMPLETED -> {
                 val firstRun = !prefs.getBoolean(KEY_BOOTSTRAP_DONE, false)
@@ -42,12 +43,10 @@ class BootReceiver : BroadcastReceiver() {
                 }
             }
 
-            // 앱 업데이트 → BOOT
             Intent.ACTION_MY_PACKAGE_REPLACED -> {
                 Config.EVENT_BOOT_CODED
             }
 
-            // 신규 설치 → BOOTSTRAP
             Intent.ACTION_PACKAGE_ADDED -> {
                 val pkg = intent.data?.schemeSpecificPart
                 if (pkg == context.packageName) {
@@ -73,11 +72,15 @@ class BootReceiver : BroadcastReceiver() {
     }
 
     private fun startAgentService(context: Context, eventType: String) {
-        Intent(context, AgentService::class.java)
+        val svcIntent = Intent(context, AgentService::class.java)
             .putExtra(EXTRA_EVENT_TYPE, eventType)
-            .also { svc ->
-                context.startForegroundService(svc)
-                Timber.tag(TAG).i("AgentService 시작 요청 (event=$eventType)")
-            }
+
+        // 포그라운드 서비스 호출 분기: 테스트 환경에서 startService 사용
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ContextCompat.startForegroundService(context, svcIntent)
+        } else {
+            context.startService(svcIntent)
+        }
+        Timber.tag(TAG).i("AgentService 시작 요청 (event=$eventType)")
     }
 }
