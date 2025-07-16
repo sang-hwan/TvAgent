@@ -54,7 +54,7 @@ jobs:
             "system-images;android-35;google_apis;x86_64" \
             "build-tools;35.0.0"
 
-          # 2차 라이선스 동의 (Google TV 등)
+          # 2차 라이선스 동의
           yes | sdkmanager --sdk_root="$ANDROID_SDK_ROOT" --licenses || true
 
       - name: Build, lint & tests
@@ -66,8 +66,7 @@ jobs:
           disable-animations: true
           emulator-boot-timeout: 900
           script: >-
-            ./gradlew -Dsdk.dir="$ANDROID_SDK_ROOT" clean build lint \
-            testDebugUnitTest connectedDebugAndroidTest --stacktrace
+            ./gradlew -Dsdk.dir="$ANDROID_SDK_ROOT" clean lint testDebugUnitTest connectedDebugAndroidTest --stacktrace
 
       - name: Cache Gradle packages
         uses: actions/cache@v3
