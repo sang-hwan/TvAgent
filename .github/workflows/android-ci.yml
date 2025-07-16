@@ -49,20 +49,23 @@ jobs:
           # 3) 라이선스 동의
           yes | sdkmanager --sdk_root="$ANDROID_SDK_ROOT" --licenses || true
 
-          # 4) 필수 Android SDK 패키지 설치 (불필요한 API 31/34 제거)
+          # 4) 필수 Android SDK 패키지 설치
           sdkmanager --sdk_root="$ANDROID_SDK_ROOT" \
             "platforms;android-35" \
             "system-images;android-35;google_apis;arm64-v8a" \
             "build-tools;35.0.0"
 
-      - name: Launch emulator
+      - name: Build, lint & instrumentation tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
           arch: arm64-v8a
           target: google_apis
           disable-animations: true
-          boot-timeout-minutes: 10
+          emulator-boot-timeout: 600
+          script: |
+            ./gradlew -Dsdk.dir="$ANDROID_SDK_ROOT" \
+              clean build lint connectedCheck --stacktrace
 
       - name: Cache Gradle packages
         uses: actions/cache@v3
@@ -70,9 +73,4 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties') }}
-
-      - name: Build, lint & run tests
-        run: |
-          ./gradlew -Dsdk.dir="$ANDROID_SDK_ROOT" \
-            clean build lint connectedCheck --stacktrace
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties') }} 
