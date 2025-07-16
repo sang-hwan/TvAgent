@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "kr.co.aromit.protocol.usp"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 26
