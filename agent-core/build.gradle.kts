@@ -16,7 +16,6 @@ android {
 
     defaultConfig {
         minSdk = 26
-        targetSdk = 35
 
         buildConfigField("Boolean", "ENABLE_TR069", enableTr069.toString())
     }
