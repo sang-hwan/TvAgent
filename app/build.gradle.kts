@@ -43,16 +43,6 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
-
-    testOptions {
-        unitTests {
-            isIncludeAndroidResources = true
-
-            all {
-                it.systemProperty("robolectric.enabledSdks", "34")
-            }
-        }
-    }
 }
 
 protobuf {
