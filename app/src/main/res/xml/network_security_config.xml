@@ -6,7 +6,10 @@
     </domain-config>
 
     <!-- aromit.iptime.org 도메인에 대해 cleartext(HTTP) 허용 -->
-    <domain-config cleartextTrafficPermitted="true">
+    <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="false">aromit.iptime.org</domain>
+        <trust-anchors>
+            <certificates src="@raw/cacert" />
+        </trust-anchors>
     </domain-config>
 </network-security-config>

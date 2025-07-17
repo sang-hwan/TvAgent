@@ -29,5 +29,8 @@ out/
 # Misc
 *.log
 
-# Optional: archive 폴더 제외 (백업 목적이라면)
+# 인증서
+cacert.pem
+
+# Optional: archive 폴더 제외
 archive/
