@@ -1,151 +1,116 @@
 package kr.co.aromit.network.mqtt
 
-import android.annotation.SuppressLint
-import android.content.Context
-import android.os.Handler
-import android.os.Looper
+import com.hivemq.client.mqtt.MqttClient
+import com.hivemq.client.mqtt.MqttGlobalPublishFilter
+import com.hivemq.client.mqtt.datatypes.MqttQos
+import com.hivemq.client.mqtt.mqtt5.Mqtt5AsyncClient
+import com.hivemq.client.mqtt.mqtt5.Mqtt5ClientBuilder
+import com.hivemq.client.mqtt.mqtt5.message.publish.Mqtt5Publish
 import kr.co.aromit.core.Config
-import org.eclipse.paho.android.service.MqttAndroidClient
-import org.eclipse.paho.client.mqttv3.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import timber.log.Timber
+import java.nio.ByteBuffer
+import javax.net.ssl.TrustManagerFactory
+
 
 /**
- * MQTT 연결 및 송수신 관리 싱글톤
+ * MQTT 연결 관리: TLS 조건부 설정, 자동 재연결, Publish/Subscribe
  *
- * • init/connect/disconnect
- * • publish/subscribe/unsubscribe
- * • 네트워크 단절 시 exponential back-off 재연결
- * • 콜백 인터페이스 지원
+ * @param trustStoreFactory PEM 인증서 InputStream으로부터 TrustManagerFactory를 생성하는 함수
+ * @param cfg 설정 정보
  */
-object MqttManager {
-
-    @SuppressLint("StaticFieldLeak")
-    private lateinit var client: MqttAndroidClient
-    private var isConnected = false
-    private var retryCount = 0
-    private val listeners = mutableListOf<MqttEventListener>()
-
-    /** 앱 시작 시 1회만 호출 */
-    fun init(context: Context) {
-        Timber.i("MqttManager.init()")
-        val appCtx = context.applicationContext
-        client = MqttAndroidClient(appCtx, Config.MQTT_BROKER_HOST, Config.mqttClientId)
-
-        client.setCallback(object : MqttCallbackExtended {
-            override fun connectComplete(reconnect: Boolean, serverURI: String) {
-                isConnected = true
-                retryCount = 0
-                Timber.i("MQTT 연결 완료 (reconnect=$reconnect)")
-                listeners.forEach { it.onConnected(reconnect) }
-            }
-            override fun connectionLost(cause: Throwable?) {
-                isConnected = false
-                Timber.w(cause, "MQTT 연결 끊김")
-                listeners.forEach { it.onDisconnected(cause) }
-                scheduleReconnect()
-            }
-            override fun messageArrived(topic: String, message: MqttMessage) {
-                Timber.d("메시지 수신 (topic=$topic)")
-                listeners.forEach { it.onMessage(topic, message.payload) }
-            }
-            override fun deliveryComplete(token: IMqttDeliveryToken?) {
-                Timber.d("메시지 발행 완료")
-            }
-        })
+class MqttManager(
+    private val trustStoreFactory: () -> TrustManagerFactory,
+    private val cfg: Config = Config
+) {
+    companion object {
+        private const val TAG = "MqttManager"
     }
 
-    /** 브로커에 연결 */
-    fun connect() {
-        if (isConnected) return
-        val opts = MqttConnectOptions().apply {
-            isCleanSession    = false
-            userName          = Config.MQTT_USERNAME
-            password          = Config.MQTT_PASSWORD.toCharArray()
-            connectionTimeout = (Config.networkConnectTimeoutMs / 1000).toInt()
-            keepAliveInterval = (Config.networkKeepAliveIntervalMs / 1000).toInt()
+    private val client: Mqtt5AsyncClient
+
+    // 내부로 들어온 Publish를 Flow로 브릿지
+    private val _incoming = MutableSharedFlow<Mqtt5Publish>(extraBufferCapacity = 64)
+    val incoming = _incoming.asSharedFlow() // 외부에 read-only 제공
+
+    init {
+        Timber.tag(TAG).d("Initializing MQTT Manager (useTls=%b)", cfg.MQTT_USE_TLS)
+
+        // 빌더 초기화
+        val builder: Mqtt5ClientBuilder = MqttClient.builder()
+            .useMqttVersion5()
+            .identifier(cfg.deviceUuid)
+            .serverHost(cfg.MQTT_BROKER_HOST)
+            .serverPort(cfg.brokerPort)
+        Timber.tag(TAG).d("MQTT v5 builder configured: host=%s, port=%d, clientId=%s", cfg.MQTT_BROKER_HOST, cfg.brokerPort, cfg.deviceUuid)
+
+        // TLS 설정이 활성화된 경우에만 TrustStore 설정
+        if (cfg.MQTT_USE_TLS) {
+            Timber.tag(TAG).d("Applying TLS configuration")
+            builder.sslConfig()
+                .trustManagerFactory(trustStoreFactory())
+                .applySslConfig()
+            Timber.tag(TAG).i("TLS configuration applied successfully")
+        } else {
+            Timber.tag(TAG).i("TLS disabled; connecting without SSL/TLS")
         }
-        Timber.i("MQTT 브로커 연결 시도")
-        client.connect(opts, null, object : IMqttActionListener {
-            override fun onSuccess(token: IMqttToken?) {
-                Timber.i("MQTT 연결 성공")
-            }
-            override fun onFailure(token: IMqttToken?, ex: Throwable?) {
-                Timber.e(ex, "MQTT 연결 실패 → 재시도 예약")
-                scheduleReconnect()
-            }
-        })
+
+        // 최종 클라이언트 생성 (자동 재연결 포함)
+        client = builder
+            .automaticReconnectWithDefaultConfig()
+            .buildAsync()
+        Timber.tag(TAG).i("MQTT client built and ready (instance: %s)", client)
+
+        // 모든 PUBLISH 메시지를 _incoming으로 전달하면서 로그 기록
+        client.publishes(MqttGlobalPublishFilter.ALL) { pub ->
+            val bytes = pub.getPayloadAsBytes()
+            val payload = if (bytes.isNotEmpty()) String(bytes) else "<empty>"
+            Timber.tag(TAG).d("Received PUBLISH - topic=%s, payload=%s", pub.topic.toString(), payload)
+            _incoming.tryEmit(pub)
+        }
     }
 
     /**
-     * 메시지 발행
-     * @param topic   토픽 (informTopic 등)
-     * @param payload 본문 바이트
-     * @param qos     0~2
-     * @param retained retain 플래그
+     * MQTT 브로커에 연결하고, 명령 토픽을 구독합니다.
      */
-    fun publish(topic: String, payload: ByteArray, qos: Int = 1, retained: Boolean = false) {
-        if (!isConnected) {
-            Timber.w("Publish ignored: not connected (topic=$topic)")
-            return
-        }
-        client.publish(topic, payload, qos, retained, null, object : IMqttActionListener {
-            override fun onSuccess(token: IMqttToken?) { Timber.d("Publish 성공 (topic=$topic)") }
-            override fun onFailure(token: IMqttToken?, ex: Throwable?) { Timber.e(ex, "Publish 실패 (topic=$topic)") }
-        })
+    suspend fun connect() {
+        Timber.tag(TAG).i("Connecting to MQTT broker at %s:%d", cfg.MQTT_BROKER_HOST, cfg.brokerPort)
+        client.connectWith()
+            .simpleAuth()
+            .username(cfg.MQTT_USERNAME)
+            .password(ByteBuffer.wrap(cfg.MQTT_PASSWORD.toByteArray()))
+            .applySimpleAuth()
+            .keepAlive(60)
+            .cleanStart(false)
+            .send()
+        Timber.tag(TAG).i("MQTT CONNECT sent")
+
+        // Command 토픽 구독 (QoS2)
+        val commandTopic = MqttTopics.command(cfg.deviceUuid)
+        client.subscribeWith()
+            .topicFilter(commandTopic)
+            .qos(MqttQos.EXACTLY_ONCE)
+            .send()
+        Timber.tag(TAG).i("Subscribed to command topic: %s", commandTopic)
     }
 
-    /** 토픽 구독 */
-    fun subscribe(topic: String, qos: Int = 1) {
-        if (!isConnected) {
-            Timber.w("Subscribe ignored: not connected (topic=$topic)")
-            return
-        }
-        client.subscribe(topic, qos, null, object : IMqttActionListener {
-            override fun onSuccess(token: IMqttToken?) { Timber.i("Subscribe 성공 (topic=$topic)") }
-            override fun onFailure(token: IMqttToken?, ex: Throwable?) { Timber.e(ex, "Subscribe 실패 (topic=$topic)") }
-        })
-    }
-
-    /** 토픽 구독 해제 */
-    fun unsubscribe(topic: String) {
-        if (!this::client.isInitialized || !isConnected) return
-        client.unsubscribe(topic, null, object : IMqttActionListener {
-            override fun onSuccess(token: IMqttToken?) { Timber.i("Unsubscribe 성공 (topic=$topic)") }
-            override fun onFailure(token: IMqttToken?, ex: Throwable?) { Timber.e(ex, "Unsubscribe 실패 (topic=$topic)") }
-        })
+    /** USP Inform 메시지 발행 */
+    fun publishInform(payload: ByteArray) {
+        val informTopic = MqttTopics.inform(cfg.deviceUuid)
+        Timber.tag(TAG).i("Publishing Inform to topic: %s", informTopic)
+        client.publishWith()
+            .topic(informTopic)
+            .payload(ByteBuffer.wrap(payload))
+            .qos(MqttQos.EXACTLY_ONCE)
+            .send()
+        Timber.tag(TAG).i("Inform published successfully")
     }
 
     /** 연결 해제 */
     fun disconnect() {
-        if (!isConnected) return
-        client.disconnect(null, object : IMqttActionListener {
-            override fun onSuccess(token: IMqttToken?) {
-                isConnected = false
-                Timber.i("Disconnect 성공")
-            }
-            override fun onFailure(token: IMqttToken?, ex: Throwable?) {
-                Timber.e(ex, "Disconnect 실패")
-            }
-        })
+        Timber.tag(TAG).i("Disconnecting MQTT client")
+        client.disconnect()
+        Timber.tag(TAG).i("MQTT client disconnected")
     }
-
-    /** 지수적 back-off 재연결 예약 */
-    private fun scheduleReconnect() {
-        val delaySec = Math.min(60, Math.pow(2.0, retryCount.toDouble()).toLong())
-        val delayMs  = delaySec * 1_000L
-        Timber.i("Reconnect in ${delaySec}s (retry=$retryCount)")
-        retryCount++
-        Handler(Looper.getMainLooper()).postDelayed({ connect() }, delayMs)
-    }
-
-    /** 외부 이벤트 수신용 리스너 */
-    interface MqttEventListener {
-        fun onConnected(reconnect: Boolean)
-        fun onDisconnected(cause: Throwable?)
-        fun onMessage(topic: String, payload: ByteArray)
-    }
-
-    /** 리스너 등록/해제 */
-    fun addListener(l: MqttEventListener)    = listeners.add(l)
-    fun removeListener(l: MqttEventListener) = listeners.remove(l)
 }

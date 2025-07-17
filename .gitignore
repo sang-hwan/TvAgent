@@ -30,7 +30,7 @@ out/
 *.log
 
 # 인증서
-cacert.pem
+emqx_ca.pem
 
 # Optional: archive 폴더 제외
 archive/

@@ -1,22 +1,27 @@
 package kr.co.aromit.network.mqtt
 
-import kr.co.aromit.core.Config
+import timber.log.Timber
 
 /**
- * MQTT 토픽 네이밍 규칙
- *
- * MQTT 토픽 구조 기준:
- *  - 상태 보고  : usp/agent/{deviceUuid}/inform
- *  - 명령 수신  : usp/agent/{deviceUuid}/command
+ * MQTT 토픽을 관리하는 유틸리티 객체
  */
 object MqttTopics {
-    private const val PREFIX = "usp/agent"
+    private const val TAG = "MqttTopics"
 
-    /** Agent → ACS 상태 보고용 Inform 토픽 */
-    fun informTopic(deviceUuid: String = Config.deviceUuid): String =
-        "$PREFIX/$deviceUuid/inform"
+    /** USP Inform 메시지 발행 토픽 */
+    fun inform(uuid: String): String {
+        val topic = "usp/agent/$uuid/inform"
+        Timber.tag(TAG).d("Inform topic generated: %s", topic)
+        return topic
+    }
 
-    /** ACS → Agent 명령 수신용 Command 토픽 */
-    fun commandTopic(deviceUuid: String = Config.deviceUuid): String =
-        "$PREFIX/$deviceUuid/command"
+    /** USP Command 수신 토픽 */
+    fun command(uuid: String): String {
+        val topic = "usp/agent/$uuid/command"
+        Timber.tag(TAG).d("Command topic generated: %s", topic)
+        return topic
+    }
+
+    /** USP 권장 QoS 레벨 (Exactly Once) */
+    const val QOS = 2
 }

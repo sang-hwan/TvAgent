@@ -20,14 +20,23 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    packaging {
+        resources {
+            excludes += "META-INF/**"
+        }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
 dependencies {
     implementation(project(":agent-core"))
-    implementation(libs.paho)
-    implementation(libs.paho.android)
+    implementation(libs.hivemq.mqtt.client)
     implementation(libs.timber)
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.coroutines.android)
 }

@@ -17,9 +17,20 @@ object Config {
     /** gradle.properties의 enableTr069 값 */
     val enableTr069: Boolean = BuildConfig.ENABLE_TR069
 
-    // ===== 컴파일 타임 상수 (const val) =====
-    /** MQTT 브로커 접속 URI (TLS) */
-    const val MQTT_BROKER_HOST = "ssl://aromit.iptime.org:58883"
+    // ===== MQTT 브로커 설정 =====
+    /** 브로커 호스트(도메인) */
+    const val MQTT_BROKER_HOST     = "aromit.iptime.org"
+    /** 브로커 포트 (비 TLS 연결) */
+    const val MQTT_BROKER_PORT     = 51883
+    /** 브로커 포트 (TLS 연결) */
+    const val MQTT_BROKER_TLS_PORT = 58883
+    /** TLS 사용 여부 – true면 TLS 포트를, false면 TCP 포트를 사용 */
+    const val MQTT_USE_TLS         = true
+
+    /** 실제 MqttManager에 넘길 포트 */
+    val brokerPort: Int
+        get() = if (MQTT_USE_TLS) MQTT_BROKER_TLS_PORT else MQTT_BROKER_PORT
+
     /** MQTT 인증 ID */
     const val MQTT_USERNAME = "admin"
     /** MQTT 인증 PW */
@@ -83,21 +94,27 @@ object Config {
     /**
      * 현재 설정값의 유효성을 검사합니다.
      *
-     * @return 타임아웃과 MQTT URI 스킴이 올바르면 true
+     * @return 타임아웃, 호스트·포트, TLS 설정이 모두 올바르면 true
      */
     fun validate(): Boolean {
         Timber.i("Config.validate() 호출")
+
+        // 타임아웃 검사
         val timeoutOk = networkConnectTimeoutMs in 1_000..60_000 &&
                 networkReadTimeoutMs    in 1_000..60_000 &&
                 networkKeepAliveIntervalMs in 1_000..300_000
 
-        // MQTT URI 검증 (ssl:// 스킴)
-        val mqttUriOk = MQTT_BROKER_HOST.startsWith("ssl://")
+        // 호스트·포트 검사
+        val hostOk = MQTT_BROKER_HOST.isNotBlank()
+        val portOk = brokerPort in 1..65_535
 
         Timber.d(
             "타임아웃 유효: $timeoutOk, " +
-                    "MQTT URI 유효: $mqttUriOk"
+                    "호스트 유효: $hostOk, " +
+                    "포트 유효: $portOk, " +
+                    "TLS 사용: $MQTT_USE_TLS"
         )
-        return timeoutOk && mqttUriOk
+
+        return timeoutOk && hostOk && portOk
     }
 }
