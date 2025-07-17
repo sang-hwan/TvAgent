@@ -7,8 +7,8 @@ on:
   pull_request:
 
 jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-22.04
 
     env:
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
@@ -17,6 +17,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Enable KVM for emulator
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-kvm libvirt-daemon-system bridge-utils
+          sudo usermod -aG kvm $USER
+          sudo chown $USER /dev/kvm
 
       - name: Cache Android SDK
         uses: actions/cache@v3
@@ -57,14 +64,22 @@ jobs:
           # 2차 라이선스 동의
           yes | sdkmanager --sdk_root="$ANDROID_SDK_ROOT" --licenses || true
 
-      - name: Build, lint & tests
+      - name: Launch API 35 emulator (x86_64)
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
-          arch: x86_64
           target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: true
           disable-animations: true
           emulator-boot-timeout: 900
+          emulator-options: |
+            -no-window
+            -gpu swiftshader_indirect
+            -no-snapshot
+            -no-audio
+            -accel kvm
           script: >-
             ./gradlew -Dsdk.dir="$ANDROID_SDK_ROOT" clean lint testDebugUnitTest connectedDebugAndroidTest --stacktrace
 
