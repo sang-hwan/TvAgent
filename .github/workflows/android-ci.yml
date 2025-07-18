@@ -6,72 +6,86 @@ on:
     branches: [ main, develop ]
   pull_request:
 
-jobs:
-  build:
-    runs-on: ubuntu-22.04
+env:
+  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+  ANDROID_HOME:     /usr/local/lib/android/sdk
 
-    env:
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      ANDROID_HOME:     /usr/local/lib/android/sdk
+######################################################################
+# 1) 유닛 테스트 + Lint (에뮬레이터 불필요, 빠르게 실패/성공 판단)   #
+######################################################################
+jobs:
+  unit-lint:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      # 코드 체크아웃
+      - uses: actions/checkout@v3
 
-      - name: Enable KVM for emulator
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-kvm libvirt-daemon-system bridge-utils
-          sudo usermod -aG kvm $USER
-          sudo chown $USER /dev/kvm
+      # Gradle 캐시 + Wrapper 캐시 + Build Cache (공식 액션)
+      - uses: gradle/gradle-build-action@v3
 
-      - name: Cache Android SDK
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.ANDROID_SDK_ROOT }}
-          key: ${{ runner.os }}-android-sdk-${{ hashFiles('**/gradle/libs.versions.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-android-sdk-
-
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
-
-      - name: Create local.properties
-        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
+      # JDK 17 설치
+      - uses: actions/setup-java@v3
         with:
           distribution: temurin
           java-version: 17
 
-      - name: Launch API 35 emulator (x86_64)
-        uses: reactivecircus/android-emulator-runner@v2
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # 로컬 SDK 경로 주입 (필요 시)
+      - run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+
+      # Lint + 유닛 테스트
+      - run: ./gradlew --no-daemon lint testDebugUnitTest --stacktrace
+
+######################################################################
+# 2) Instrumentation/UI 테스트 (에뮬레이터 필요)                      #
+######################################################################
+  instrumented:
+    runs-on: ubuntu-22.04
+    needs: unit-lint          # 유닛/린트 통과 후 실행
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: gradle/gradle-build-action@v3
+      - uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+
+      ################################################################
+      # 에뮬레이터 실행(reactivecircus/android-emulator-runner@v2)    #
+      #  - HW 가속 비활성화 → ADB 5037 충돌 해결                     #
+      ################################################################
+      - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
           target: google_apis
           arch: x86_64
           profile: pixel_6
+          disable-linux-hw-accel: true       # **핵심** – KVM 설치 불필요
           force-avd-creation: true
           disable-animations: true
-          emulator-boot-timeout: 900
+          emulator-boot-timeout: 900         # 15 분
           emulator-options: |
             -no-window
             -gpu swiftshader_indirect
             -no-snapshot
             -no-audio
-            -accel kvm
-          packages: |
-            platform-tools
-            build-tools;35.0.0
-          script: >-
-            ./gradlew -Dsdk.dir="$ANDROID_SDK_ROOT" \
-              clean lint testDebugUnitTest connectedDebugAndroidTest --stacktrace
+          # 테스트 스크립트
+          script: |
+            # ADB 충돌 대비 재시작
+            adb kill-server || true
+            adb start-server
+            adb devices -l
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties') }}
+            ./gradlew --no-daemon \
+              connectedDebugAndroidTest --stacktrace
