@@ -34,7 +34,12 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      # 로컬 SDK 경로 주입 (필요 시)
+      - name: Inject EMQX CA (raw resource)
+        run: |
+          mkdir -p app/src/main/res/raw
+          echo "${{ secrets.EMQX_CA_B64 }}" | base64 -d > app/src/main/res/raw/emqx_ca.pem
+
+      # 로컬 SDK 경로 주입
       - run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
 
       # Lint + 유닛 테스트
@@ -44,8 +49,8 @@ jobs:
 # 2) Instrumentation/UI 테스트 (에뮬레이터 필요)                      #
 ######################################################################
   instrumented:
+    needs: unit-lint
     runs-on: ubuntu-22.04
-    needs: unit-lint          # 유닛/린트 통과 후 실행
     timeout-minutes: 60
 
     steps:
@@ -59,6 +64,11 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
+      - name: Inject EMQX CA (raw resource)
+        run: |
+          mkdir -p app/src/main/res/raw
+          echo "${{ secrets.EMQX_CA_B64 }}" | base64 -d > app/src/main/res/raw/emqx_ca.pem
+
       - run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
 
       ################################################################
@@ -71,10 +81,10 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          disable-linux-hw-accel: true       # **핵심** – KVM 설치 불필요
+          disable-linux-hw-accel: true
           force-avd-creation: true
           disable-animations: true
-          emulator-boot-timeout: 900         # 15 분
+          emulator-boot-timeout: 900
           emulator-options: |
             -no-window
             -gpu swiftshader_indirect
@@ -87,5 +97,4 @@ jobs:
             adb start-server
             adb devices -l
 
-            ./gradlew --no-daemon \
-              connectedDebugAndroidTest --stacktrace
+            ./gradlew --no-daemon connectedDebugAndroidTest --stacktrace
