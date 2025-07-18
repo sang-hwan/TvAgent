@@ -16,6 +16,8 @@ import kotlinx.coroutines.launch
 import kr.co.aromit.tvagent.R
 import kr.co.aromit.tvagent.receiver.BootReceiver
 import kr.co.aromit.core.Config
+import kr.co.aromit.network.mqtt.MqttManager
+import kr.co.aromit.network.mqtt.toTrustManagerFactory
 import timber.log.Timber
 
 /**
@@ -47,6 +49,11 @@ class AgentService : Service() {
         }
     }
 
+    private val mqttManager: MqttManager by lazy {
+        val certStream = resources.openRawResource(R.raw.emqx_ca)
+        MqttManager(certStream::toTrustManagerFactory, Config)
+    }
+
     private val handler by lazy {
         Timber.tag(TAG).d("Handler for ticker initialized on main looper")
         Handler(Looper.getMainLooper())
@@ -56,6 +63,7 @@ class AgentService : Service() {
         Timber.tag(TAG).d("Service CoroutineScope initialized")
     }
     private var tickerScheduled = false
+    private var mqttJob: Job? = null
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -94,6 +102,16 @@ class AgentService : Service() {
         Timber.tag(TAG).d("Building notification and starting foreground service")
         startForeground(NOTIF_ID, buildNotification())
         Timber.tag(TAG).i("Foreground service started with notification ID %d", NOTIF_ID)
+
+        mqttJob = serviceScope.launch {
+            Timber.tag(TAG).i("Starting MQTT connection from AgentService")
+            mqttManager.connect()
+            mqttManager.incoming.collect { msg ->
+                val payload = msg.payloadAsBytes
+                Timber.tag(TAG).i("MQTT message received (bytes=%d)", payload.size)
+                // TODO: payload를 실제 USP 처리 로직에 전달
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -135,6 +153,8 @@ class AgentService : Service() {
     override fun onDestroy() {
         Timber.tag(TAG).i("onDestroy called: cleaning up service")
         handler.removeCallbacks(ticker)
+        mqttJob?.cancel()
+        mqttManager.disconnect()
         serviceJob.cancel()
         stopForeground(STOP_FOREGROUND_REMOVE)
         isRunning = false

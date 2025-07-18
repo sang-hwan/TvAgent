@@ -35,6 +35,7 @@ kotlin {
 
 dependencies {
     implementation(project(":agent-core"))
+    api(libs.hivemq.mqtt.client)
     implementation(libs.hivemq.mqtt.client)
     implementation(libs.timber)
     implementation(libs.kotlinx.coroutines.core)

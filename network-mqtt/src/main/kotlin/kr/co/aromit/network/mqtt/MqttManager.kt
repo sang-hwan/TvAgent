@@ -84,7 +84,10 @@ class MqttManager(
             .keepAlive(60)
             .cleanStart(false)
             .send()
-        Timber.tag(TAG).i("MQTT CONNECT sent")
+            .whenComplete { ack, ex ->
+                if (ex != null) Timber.tag(TAG).e(ex, "MQTT CONNECT failed")
+                else Timber.tag(TAG).i("MQTT CONNECT acknowledged: %s", ack.toString())
+            }
 
         // Command 토픽 구독 (QoS2)
         val commandTopic = MqttTopics.command(cfg.deviceUuid)
@@ -92,7 +95,10 @@ class MqttManager(
             .topicFilter(commandTopic)
             .qos(MqttQos.EXACTLY_ONCE)
             .send()
-        Timber.tag(TAG).i("Subscribed to command topic: %s", commandTopic)
+            .whenComplete { subAck, ex2 ->
+                if (ex2 != null) Timber.tag(TAG).e(ex2, "MQTT SUBSCRIBE failed")
+                else Timber.tag(TAG).i("Subscribed to command topic")
+            }
     }
 
     /** USP Inform 메시지 발행 */
@@ -111,6 +117,9 @@ class MqttManager(
     fun disconnect() {
         Timber.tag(TAG).i("Disconnecting MQTT client")
         client.disconnect()
-        Timber.tag(TAG).i("MQTT client disconnected")
+            .whenComplete { _, ex ->
+                if (ex != null) Timber.tag(TAG).e(ex, "MQTT DISCONNECT failed")
+                else Timber.tag(TAG).i("MQTT client disconnected")
+            }
     }
 }

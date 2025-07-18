@@ -86,8 +86,6 @@ dependencies {
         exclude(group = "xpp3", module = "xpp3")
     }
     implementation(libs.simple.xml)
-    implementation(libs.paho)
-    implementation(libs.paho.android)
     implementation(libs.protobuf.java)
     implementation(libs.timber)
 

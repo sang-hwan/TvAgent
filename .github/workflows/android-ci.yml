@@ -1,4 +1,7 @@
 # .github/workflows/android-ci.yml
+# 호스트가 지원하지 않는 가상화 조건으로 인해 CI로 에뮬레이터 테스트 불가
+# 임시로 계측 테스트 건너뛰고, 로컬에서 실행
+
 name: Android CI
 
 on:
@@ -10,9 +13,7 @@ env:
   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
   ANDROID_HOME:     /usr/local/lib/android/sdk
 
-######################################################################
-# 1) 유닛 테스트 + Lint (에뮬레이터 불필요)                           #
-######################################################################
+# 유닛 테스트 + Lint (에뮬레이터 불필요)
 jobs:
   unit-lint:
     runs-on: ubuntu-22.04
@@ -34,48 +35,8 @@ jobs:
           mkdir -p app/src/main/res/raw
           echo "${{ secrets.EMQX_CA_B64 }}" | base64 -d > app/src/main/res/raw/emqx_ca.pem
 
-      - run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
-      - run: ./gradlew --no-daemon lint testDebugUnitTest --stacktrace
+      - name: Configure SDK path
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
 
-######################################################################
-# 2) Instrumentation/UI 테스트 (에뮬레이터 필요)                      #
-######################################################################
-  instrumented:
-    needs: unit-lint
-    runs-on: ubuntu-22.04
-    timeout-minutes: 60
-
-    steps:
-      - uses: actions/checkout@v3
-      - uses: gradle/gradle-build-action@v3
-      - uses: actions/setup-java@v3
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
-
-      - name: Inject EMQX CA (raw resource)
-        run: |
-          mkdir -p app/src/main/res/raw
-          echo "${{ secrets.EMQX_CA_B64 }}" | base64 -d > app/src/main/res/raw/emqx_ca.pem
-
-      - run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
-
-      - uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          target: google_apis
-          arch: arm64-v8a
-          profile: pixel_6
-          force-avd-creation: true
-          disable-animations: true
-          emulator-boot-timeout: 1800
-          emulator-options: |
-            -no-window
-            -gpu swiftshader_indirect
-            -no-snapshot
-            -no-audio
-          script: |
-            ./gradlew --no-daemon connectedDebugAndroidTest --stacktrace
+      - name: Run Lint & Unit Tests
+        run: ./gradlew --no-daemon lint testDebugUnitTest --stacktrace

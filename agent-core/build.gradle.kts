@@ -33,7 +33,5 @@ kotlin {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
-    implementation(libs.paho)
-    implementation(libs.paho.android)
     implementation(libs.timber)
 }

@@ -1,5 +1,5 @@
 syntax = "proto3";
-option java_package = "kr.co.aromit.tvagent.network.mqtt.topics.usp";
+option java_package = "kr.co.aromit.protocol.usp.proto";
 option java_outer_classname = "UspMsgProto";
 
 //**************************************************************************

@@ -1,6 +1,6 @@
 package kr.co.aromit.protocol.usp.parser.dto
 
-import kr.co.aromit.tvagent.network.mqtt.topics.usp.UspMsgProto
+import kr.co.aromit.protocol.usp.proto.UspMsgProto
 
 /**
  * Data Transfer Objects for USP messages.

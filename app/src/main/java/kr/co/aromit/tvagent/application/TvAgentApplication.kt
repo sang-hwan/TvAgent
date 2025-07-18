@@ -32,21 +32,18 @@ class TvAgentApplication : Application() {
         Config.initDeviceUuid(this)
         Timber.tag(TAG).d("Device UUID initialized: %s", Config.deviceUuid)
 
-        // 무거운 초기화 작업은 IO 스레드에서 수행
+        // 2) raw 리소스에서 PEM 인증서 열기 및 MqttManager 초기화
         appScope.launch {
-            // 2) raw 리소스에서 PEM 인증서 열기
             Timber.tag(TAG).d("Loading CA certificate from raw resource: R.raw.emqx_ca=%d", R.raw.emqx_ca)
             val certStream = resources.openRawResource(R.raw.emqx_ca)
             Timber.tag(TAG).i("CA certificate InputStream obtained successfully")
 
-            // 3) TrustManagerFactory 생성 함수를 MqttManager에 주입
             Timber.tag(TAG).d("Injecting TrustManagerFactory into MqttManager")
             val mqttManager = MqttManager(
                 trustStoreFactory = certStream::toTrustManagerFactory,
                 cfg = Config
             )
             Timber.tag(TAG).i("MqttManager initialized: %s", mqttManager)
-            // TODO: 필요시 mqttManager.connect() 등 추가 호출
         }
 
         // Legacy(TR‑069) 활성화 여부 확인
