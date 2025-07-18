@@ -81,19 +81,17 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          disable-linux-hw-accel: true
           force-avd-creation: true
           disable-animations: true
-          emulator-boot-timeout: 900
+          emulator-boot-timeout: 1200
+          pre-emulator-launch-script: adb kill-server
           emulator-options: |
             -no-window
-            -gpu swiftshader_indirect
+            -gpu auto
             -no-snapshot
             -no-audio
           # 테스트 스크립트
           script: |
-            # ADB 충돌 대비 재시작
-            adb kill-server || true
             adb start-server
             adb devices -l
 
